@@ -15,6 +15,6 @@ on all network devices. This work ZoomSynth can synthesis fine-grained trafffic 
 # Important links 
 
 1. [GPT-2](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
-2. [CLIP]:(https://github.com/openai/CLIP)
+2. [CLIP](https://github.com/openai/CLIP)
 
 ## 
