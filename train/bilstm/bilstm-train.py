@@ -1,8 +1,7 @@
 ##################################################
-# Compared to the original version, this version(v1) improves the data loading and processing phase
-# *Memory pre-allocated: see P_processed_batch, P_tensor_list, mask_tensor_list 
-# *Batch processing:
-#
+# This file is used to train bilstm
+# Input: counters
+# Output: y_δ 
 ##################################################
 import torch
 import torch.nn as nn

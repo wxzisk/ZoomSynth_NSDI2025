@@ -1,6 +1,6 @@
 import argparse
 
-# 设置命令行参数
+# align processed pcap files and use '0' to fill the blank when the original file is not long enough
 parser = argparse.ArgumentParser(description='Copy first N lines of a file and fill the rest with a specific pattern.')
 parser.add_argument('input_file', help='Path to the input file.')
 parser.add_argument('output_file', help='Path to the output file.')

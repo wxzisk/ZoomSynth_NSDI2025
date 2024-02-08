@@ -1,7 +1,5 @@
 ##################################################
-# Compared to the original version, this version(v1) improves the data loading and processing phase
-# *Memory pre-allocated: see P_processed_batch, P_tensor_list, mask_tensor_list 
-# *Batch processing:
+# This file is used to train a joint model including a Transformer and a BiLSTM
 #
 ##################################################
 import torch
@@ -12,12 +10,12 @@ import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# input and output path
+# input/output path and template name of files 
 base_path = '/root/traffic_recovery/data/mawi/'
 input_template = 'summary_{}_1s_aligned.txt'
 output_template = 'summary_{}_1ms_aligned.txt'
 
-# 生成日期序列
+
 dates = range(1,2)
 
 input_size = 3
@@ -27,7 +25,7 @@ num_layers = 10
 num_heads = 4
 dropout = 0.1
 lr = 0.01
-flatten_len = 5 #展平后一层有多少个summary
+flatten_len = 5
 num_epochs = 3000
 S_processed = []
 P_processed = []
@@ -116,13 +114,10 @@ class JointModel(nn.Module):
         self.bilstm = bilstm
 
     def forward(self, x, y):
-        # 使用Transformer模型获得y_hat
         y_hat = self.transformer(x, y)
 
-        # 使用BiLSTM模型获得y_plus
         y_plus = self.bilstm(y)
 
-        # 返回y_hat和y_plus的组合
         return y_hat + y_plus
 
 # upscaling_times = 10
@@ -153,7 +148,6 @@ for input_file, output_file in zip(input_summary_files, output_summary_files):
         lines = f.readlines()
         line_count = len(lines)
         print("line_count: ", line_count)
-    # 存储当前文件中每个批次的张量
     P_processed = []
     temp_list = []
     for i in range(0, line_count):
@@ -174,10 +168,9 @@ print("S_tensor:", S_tensor)
 print("P_tensor:", P_tensor)
 print(f"finished loading a new file")
 
-# 切分S_tensor和P_tensor
 print("data loaded, processing...")
 
-#标准化
+
 input_mean = S_continuous_features.mean(dim=1, keepdim = True)
 input_std =  S_continuous_features.std(dim=1, keepdim = True) + 1e-6
 S_continuous_features = (S_continuous_features - input_mean) / (input_std)
@@ -189,7 +182,6 @@ P_tensor = torch.cat((P_continuous_features, P_binary_features), dim=2)
 
 
 print("output_mean_shape: ", output_mean.shape, "output_std_shape: ",output_std.shape)
-# 假设 input_mean 是计算得到的均值张量
 print(input_mean, input_std, output_mean, output_std)
 print(torch.isnan(input_mean).any(), torch.isinf(input_mean).any())
 print(torch.isnan(input_std).any(), torch.isinf(input_std).any())
@@ -204,7 +196,6 @@ input_chunks = torch.chunk(S_tensor, num_chunks, dim=1)
 output_chunks = torch.chunk(P_tensor, num_chunks, dim=1)
 # print(input_chunks.shape, output_chunks.shape) 
 
-# 创建模型
 transformer_model = Transformer(input_size, hidden_size, num_layers, num_heads, dropout, output_size)
 bilstm_model = BiLSTMModel(output_size, hidden_size, output_size)
 model = JointModel(transformer_model, bilstm_model)
@@ -258,7 +249,7 @@ for epoch in range(num_epochs):
     print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch + 1, num_epochs, total_loss))
     if total_loss.item() <= 0.0001:
         print(f"Stopping training: Loss reached {total_loss.item()} at epoch {epoch+1}")
-        break  # 跳出内层循环 
+        break  
 
 # save model param
 torch.save(model.state_dict(), '/root/traffic_recovery/pretrained_models/jointmodel_s2ms_mawi.pth')

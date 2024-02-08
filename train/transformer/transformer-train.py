@@ -1,7 +1,5 @@
 ##################################################
-# Compared to the original version, this version(v1) improves the data loading and processing phase
-# *Memory pre-allocated: see P_processed_batch, P_tensor_list, mask_tensor_list 
-# *Batch processing:
+# This file is used to build transformer of GTT and train it using coarse-grain and fine-grain data
 #
 ##################################################
 import torch
@@ -28,7 +26,7 @@ num_layers = 20
 num_heads = 4
 dropout = 0.1
 lr = 0.01
-flatten_len = 10 #展平后一层有多少个summary
+flatten_len = 10
 S_processed = []
 P_processed = []
 
@@ -131,12 +129,9 @@ for input_file, output_file in zip(input_summary_files, output_packet_files):
         S_tensor = torch.cat((S_tensor, S), dim =0)
     print("total_lines:", total_lines)
 
-
-    # 读取P数据并进行预处理
     with open(output_file, 'r') as f:
         lines = f.readlines()
         line_count = len(lines)
-    # 存储当前文件中每个批次的张量
     P_processed = []
     for i in range(0, int(total_lines/flatten_len)):
         inner_list = []
@@ -160,12 +155,10 @@ print("S_tensor:", S_tensor)
 print("P_tensor:", P_tensor)
 print(f"finished loading a new file")
 
-# 切分S_tensor和P_tensor
 print("data loaded, processing...")
 # S_tensor = S_tensor.view(-1,S_lines_in_one_batch, input_size)
 # P_tensor = P_tensor.view(-1,S_lines_in_one_batch, output_size)
 print(S_tensor.shape, P_tensor.shape) 
-#标准化
 input_mean = S_tensor.mean(dim=2, keepdim = True)
 input_std =  S_tensor.std(dim=2, keepdim = True)
 S_tensor = (S_tensor - input_mean) / (input_std/10)
@@ -176,7 +169,6 @@ P_tensor = (P_tensor - output_mean) / (output_std/10)
 input_chunks = torch.chunk(S_tensor, num_chunks, dim=0)
 output_chunks = torch.chunk(P_tensor, num_chunks, dim=0)
 
-# 创建模型
 model = Transformer(input_size, hidden_size, num_layers, num_heads, dropout, output_size)
 model.to(device)
 
@@ -253,7 +245,6 @@ P_tensor_test = torch.tensor(P_test, dtype=torch.float32).unsqueeze(0).to(device
 print(S_tensor_test.shape, P_tensor_test.shape)
 print("input:", np.array(S_tensor_test.detach().cpu()).round(2))
 print("y_true:", np.array(P_tensor_test.detach().cpu()).round(2))
-#标准化测试集
 input_val_mean = S_tensor_test.mean(dim=2, keepdim = True)
 input_val_std =  S_tensor_test.std(dim=2, keepdim = True)
 S_tensor_test = (S_tensor_test - input_val_mean) / (input_val_std/ 10.0)

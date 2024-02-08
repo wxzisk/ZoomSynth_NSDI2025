@@ -33,6 +33,5 @@ with open(pcap_file, 'rb') as f, open(output_file, 'w') as f_out:
                 src_port = 0
                 dst_port = 0
 
-            # 输出信息到文件
             f_out.write(f'{ts},{len(buf)},{src_ip},{dst_ip},{src_port},{dst_port},{protocol}\n')
 

@@ -1,15 +1,5 @@
 #!/bin/bash
-
-# for ((date=20220101; date<=20220115; date++)); do
-#    input_file="${date}1400.pcap"
-#    output_file="packets_${date}.txt"
-
-#
-#    python do_collection_v1.py "$input_file" "$output_file"
-#    echo "$input_file" "pcap to packets"
-# done
-
-# 
+# set a fixed length and use align_file.py to align processed data files 
 for ((date=01; date<=15; date++)); do    
 
     input_file="summary_${date}_1s.txt"

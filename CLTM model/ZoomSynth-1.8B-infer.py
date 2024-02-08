@@ -1,6 +1,8 @@
 ##################################################
-# This file helps to execute infer phase of CLTM
-# In this file, GTTs of CLTM are simply connected into a long chain
+# As described in our paper, we use a 1.8B CLTM model to run our Counter-to-Packets task
+# Here is the CLTM model including several GTTs which is a tree-based model.
+# The factor k of each layer of GTT is 10 and the total number of GTTs is determined by specific task and our resoures
+# Please modify the hyperparameters below to make it runnable on your testbed and fit to your task
 ##################################################
 import torch
 import torch.nn as nn
@@ -9,9 +11,16 @@ import torch.nn.functional as F
 import numpy as np
 import time
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# device = "cpu"
-#Transformer Encoder
+if torch.cuda.is_available():
+    num_gpus = torch.cuda.device_count()
+    print(f"Number of avaliable GPUs: {num_gpus}")
+else:
+    raise SystemError("No CUDA or GPUs")
+
+devices = ["cuda:0", "cuda:1", "cuda:2", "cuda:3", 
+           "cuda:4", "cuda:5", "cuda:6", "cuda:7"]
+
+#Transformer Encoder in GTT
 class TransformerEncoder(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_heads, dropout):
         super().__init__()
@@ -291,10 +300,6 @@ print(torch.isnan(P_tensor_std).any(), torch.isinf(P_tensor_std).any())
 
 
 # slice into batches
-# S_tensor_1 = S_tensor_1.view(10, -1, 3).to(device)
-# S_tensor_2 = S_tensor_2.view(10, -1, 3).to(device)
-# S_tensor_3 = S_tensor_3.view(10, -1, 3).to(device)
-# P_tensor = P_tensor.view(10, -1, 7).to(device)
 S_tensor_1 = S_tensor_1.view(10, -1, 3).to(device)
 S_tensor_2 = S_tensor_2.to(device)
 S_tensor_3 = S_tensor_3.to(device)
@@ -302,9 +307,6 @@ S_tensor_4 = S_tensor_4.view(10, -1, 3).to(device)
 S_tensor_5 = S_tensor_5.to(device)
 S_tensor_6 = S_tensor_6.to(device)
 P_tensor = P_tensor.view(10, -1, 7).to(device)
-# input_chunks = torch.chunk(S_tensor, num_chunks, dim=1)
-# output_chunks = torch.chunk(P_tensor, num_chunks, dim=1)
-# print(input_chunks.shape, output_chunks.shape) 
 
 
 input_test_chunk = None
@@ -314,18 +316,18 @@ output = None
 transformer_model = Transformer(3, hidden_size, num_layers, num_heads, dropout, 3)
 bilstm_model = BiLSTMModel(3, hidden_size, 3)
 joint_model = JointModel(transformer_model, bilstm_model)
-joint_model.to(device)
+joint_model.to(devices[0])
 #1' 10x
 joint_model.load_state_dict(torch.load('/root/traffic_recovery/pretrained_models/cidds_last6_10x.pth'))
 batch_size, sequence_length, feature_length = S_tensor_5.shape
-y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(device)
+y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(devices[0])
 output1 = joint_model(S_tensor_6, y_tensor)
 print("S_tensor_6:", S_tensor_6)
 print("output1.shape:", output1.shape)
 output = output1.cpu()
 output = output * S_tensor_5_std + S_tensor_5_mean
 print("output1:", output)
-with open('/root/traffic_recovery/code/result/cidds_yici_10x.txt', 'w') as file:
+with open('/root/traffic_recovery/code/result/cidds_1times_10x.txt', 'w') as file:
     for batch_idx in range(output.shape[0]):
         for row_idx in range(output.shape[1]):
             row_data = np.array(output[batch_idx, row_idx].detach().cpu()).round(2)
@@ -334,12 +336,12 @@ with open('/root/traffic_recovery/code/result/cidds_yici_10x.txt', 'w') as file:
 #2' 10x
 joint_model.load_state_dict(torch.load('/root/traffic_recovery/pretrained_models/ton_last5_10x.pth'))
 batch_size, sequence_length, feature_length = S_tensor_4.shape
-y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(device)
+y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(devices[0])
 output2 = joint_model(S_tensor_5, y_tensor)
 print("output2.shape:", output2.shape)
 output = output2.cpu()
 output = output * S_tensor_4_std + S_tensor_4_mean
-with open('/root/traffic_recovery/code/result/ton_liangci_10x.txt', 'w') as file:
+with open('/root/traffic_recovery/code/result/ton_2times_10x.txt', 'w') as file:
     for batch_idx in range(output.shape[0]):
         for row_idx in range(output.shape[1]):
             row_data = np.array(output[batch_idx, row_idx].detach().cpu()).round(2)
@@ -348,12 +350,12 @@ with open('/root/traffic_recovery/code/result/ton_liangci_10x.txt', 'w') as file
 #3' 10x
 joint_model.load_state_dict(torch.load('/root/traffic_recovery/pretrained_models/ton_last4_10x.pth'))
 batch_size, sequence_length, feature_length = S_tensor_3.shape
-y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(device)
+y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(devices[2])
 output3 = joint_model(output2, y_tensor)
 print("output3.shape:", output3.shape)
 output = output3.cpu()
 output = output * S_tensor_3_std + S_tensor_3_mean
-with open('/root/traffic_recovery/code/result/ton_sanci_10x.txt', 'w') as file:
+with open('/root/traffic_recovery/code/result/ton_3times_10x.txt', 'w') as file:
     for batch_idx in range(output.shape[0]):
         for row_idx in range(output.shape[1]):
             row_data = np.array(output[batch_idx, row_idx].detach().cpu()).round(2)
@@ -362,12 +364,12 @@ with open('/root/traffic_recovery/code/result/ton_sanci_10x.txt', 'w') as file:
 #4' 10x
 joint_model.load_state_dict(torch.load('/root/traffic_recovery/pretrained_models/ton_last3_10x.pth'))
 batch_size, sequence_length, feature_length = S_tensor_2.shape
-y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(device)
+y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(devices[3])
 output4 = joint_model(output3, y_tensor)
 print("output4.shape:", output4.shape)
 output = output4.cpu()
 output = output * S_tensor_2_std + S_tensor_2_mean
-with open('/root/traffic_recovery/code/result/ton_sici_10x.txt', 'w') as file:
+with open('/root/traffic_recovery/code/result/ton_4times_10x.txt', 'w') as file:
     for batch_idx in range(output.shape[0]):
         for row_idx in range(output.shape[1]):
             row_data = np.array(output[batch_idx, row_idx].detach().cpu()).round(2)
@@ -377,12 +379,12 @@ with open('/root/traffic_recovery/code/result/ton_sici_10x.txt', 'w') as file:
 joint_model.load_state_dict(torch.load('/root/traffic_recovery/pretrained_models/ton_last2_10x.pth'))
 output4 = output4.view(10, -1, 3)
 batch_size, sequence_length, feature_length = S_tensor_1.shape
-y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(device)
+y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(devices[4])
 output5 = joint_model(output4, y_tensor)
 print("output5.shape:", output5.shape)
 output = output5.cpu()
 output = output * S_tensor_1_std + S_tensor_1_mean
-with open('/root/traffic_recovery/code/result/ton_wuci_10x.txt', 'w') as file:
+with open('/root/traffic_recovery/code/result/ton_5times_10x.txt', 'w') as file:
     for batch_idx in range(output.shape[0]):
         for row_idx in range(output.shape[1]):
             row_data = np.array(output[batch_idx, row_idx].detach().cpu()).round(2)
@@ -392,11 +394,11 @@ with open('/root/traffic_recovery/code/result/ton_wuci_10x.txt', 'w') as file:
 transformer_model = Transformer(3, hidden_size, num_layers, num_heads, dropout, 2)
 bilstm_model = BiLSTMModel(2, hidden_size, 2)
 joint_model = JointModel(transformer_model, bilstm_model)
-joint_model.to(device)
+joint_model.to(devices[5])
 joint_model.load_state_dict(torch.load('/root/traffic_recovery/pretrained_models/ton_last_10x.pth'))
 output5 = output5.view(10, -1, 3)
 batch_size, sequence_length, feature_length = P_tensor.shape
-y_tensor = torch.zeros(batch_size, sequence_length, 2).to(device)#not feature_length but 2(ts, byte_count)
+y_tensor = torch.zeros(batch_size, sequence_length, 2).to(devices[5])#not feature_length but 2(ts, byte_count)
 output6 = joint_model(output5, y_tensor)
 print("output6.shape:", output6.shape)
 
@@ -413,10 +415,10 @@ print("output6.shape:", output6.shape)
 transformer_model = Transformer(2, hidden_size, num_layers, num_heads, dropout, 7 )
 bilstm_model = BiLSTMModel(7, hidden_size, 7)
 joint_model = JointModel(transformer_model, bilstm_model)
-joint_model.to(device)
+joint_model.to(devices[6])
 joint_model.load_state_dict(torch.load('/root/traffic_recovery/pretrained_models/ton_header_gen.pth'))
 batch_size, sequence_length, feature_length = P_tensor.shape
-y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(device)
+y_tensor = torch.zeros(batch_size, sequence_length, feature_length).to(devices[6])
 output7 = joint_model(output6, y_tensor)
 print("output7.shape:", output7.shape)
 output7 = output7.cpu()

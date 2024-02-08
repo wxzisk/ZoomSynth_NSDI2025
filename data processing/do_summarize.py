@@ -1,5 +1,6 @@
+# This file is used to summarize packet files and then generate counters
+#
 import argparse
-
 
 parser = argparse.ArgumentParser(description="Extract packet information from pcap file.")
 parser.add_argument("input_file", help="Input collection txt file path")
